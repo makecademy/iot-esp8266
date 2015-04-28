@@ -1,4 +1,14 @@
-// Import required libraries
+/***************************************************
+
+Written by Marco Schwartz for Open Home Automation.  
+BSD license, all text above must be included in any redistribution
+
+Based on the original sketches supplied with the ESP8266/Arduino 
+implementation written by Ivan Grokhotkov      
+
+****************************************************/
+
+// Libraries
 #include <ESP8266WiFi.h>
 #include "DHT.h"
 
