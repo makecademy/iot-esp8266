@@ -26,7 +26,7 @@ const char* password = "your_wifi_network_password";
 DHT dht(DHTPIN, DHTTYPE, 15);
 
 // Host
-const char* host = "54.84.241.136";
+const char* host = "dweet.io";
 
 void setup() {
   
