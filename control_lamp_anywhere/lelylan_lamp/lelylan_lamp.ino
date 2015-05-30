@@ -13,11 +13,9 @@ implementation written by Ivan Grokhotkov
 #include <PubSubClient.h>
  
 // Credentials
-char* deviceId     = "device_id";             // * set your device id (will be the MQTT client username)
-char* deviceSecret = "device_secret";         // * set your device secret (will be the MQTT client password)
-char* outTopic     = "devices/device_id/set"; // * MQTT channel where physical updates are published
-char* inTopic      = "devices/device_id/get"; // * MQTT channel where lelylan updates are received
-char* clientId     = "7dslk2dfksd";             // * set a random string (max 23 chars, will be the MQTT client id)
+String deviceId     = "device_id";             // * set your device id (will be the MQTT client username)
+String deviceSecret = "device_secret";         // * set your device secret (will be the MQTT client password)
+String clientId     = "7dslk2dfksd";        // * set a random string (max 23 chars, will be the MQTT client id)
 
 // WiFi name & password
 const char* ssid = "your_WiFi_name";
@@ -27,15 +25,19 @@ const char* password = "your_WiFi_password";
 char* payloadOn  = "{\"properties\":[{\"id\":\"518be5a700045e1521000001\",\"value\":\"on\"}]}";
 char* payloadOff = "{\"properties\":[{\"id\":\"518be5a700045e1521000001\",\"value\":\"off\"}]}";
 
-byte server[] = { 178, 62, 108, 47 }; // MQTT server address
+// Topics
+String outTopic     = "devices/" + deviceId + "/set"; // * MQTT channel where physical updates are published
+String inTopic      = "devices/" + deviceId + "/get"; // * MQTT channel where lelylan updates are received
+
+// MQTT server address
+IPAddress server(178, 62, 108, 47);
  
 // WiFi Client
 WiFiClient wifiClient;
  
 // MQTT
-void callback(char* topic, byte* payload, unsigned int length); // subscription callback
-PubSubClient client(server, 1883, callback, wifiClient);         // mqtt client
- 
+PubSubClient client(server);
+
 // Pins
 int outPin = 5; // led
  
@@ -45,6 +47,31 @@ int reading;          // current reading from the input pin
 int previous = LOW;   // previous reading from the input pin
 long time = 0;        // the last time the output pin was toggled
 long debounce = 200;  // the debounce time, increase if the output flickers
+
+// Callback
+void callback(const MQTT::Publish& pub) {
+  
+  // Copy the payload content into a char*
+  char* json;
+  json = (char*) malloc(pub.payload_len() + 1);
+  memcpy(json, pub.payload(), pub.payload_len());
+  json[pub.payload_len()] = '\0';
+ 
+  // Update the physical status and confirm the executed update
+  boolean state;
+  if (String(payloadOn) == String(json)) {
+    Serial.println("[LELYLAN] Led turned on");
+    lelylanPublish("on");
+    state = HIGH;
+  } else {
+    Serial.println("[LELYLAN] Led turned off");
+    lelylanPublish("off");
+    state = LOW;
+  }
+ 
+  digitalWrite(outPin, state);
+  free(json);
+}
  
 void setup() {
   Serial.begin(115200);
@@ -57,6 +84,9 @@ void setup() {
   Serial.println(ssid);
   
   WiFi.begin(ssid, password);
+  
+  // Set callback
+  client.set_callback(callback);
   
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -84,7 +114,8 @@ void lelylanConnection() {
   // add reconnection logics
   if (!client.connected()) {
     // connection to MQTT server
-    if (client.connect(clientId, deviceId, deviceSecret)) {
+    if (client.connect(MQTT::Connect(clientId)
+	             .set_auth(deviceId, deviceSecret))) {
       Serial.println("[PHYSICAL] Successfully connected with MQTT");
       lelylanSubscribe(); // topic subscription
     }
@@ -104,26 +135,5 @@ void lelylanPublish(char* value) {
 void lelylanSubscribe() {
   client.subscribe(inTopic);
 }
- 
-/* Receive Lelylan message and confirm the physical change */
-void callback(char* topic, byte* payload, unsigned int length) {
-  // copu the payload content into a char*
-  char* json;
-  json = (char*) malloc(length + 1);
-  memcpy(json, payload, length);
-  json[length] = '\0';
- 
-  // update the physical status and confirm the executed update
-  if (String(payloadOn) == String(json)) {
-    Serial.println("[LELYLAN] Led turned on");
-    lelylanPublish("on");
-    state = HIGH;
-  } else {
-    Serial.println("[LELYLAN] Led turned off");
-    lelylanPublish("off");
-    state = LOW;
-  }
- 
-  digitalWrite(outPin, state);
-  free(json);
-}
+
+// 

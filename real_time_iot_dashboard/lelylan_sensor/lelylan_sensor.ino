@@ -14,18 +14,17 @@ implementation written by Ivan Grokhotkov
 #include "DHT.h"
  
 // Credentials
-char* deviceId     = "device_id";             // * set your device id (will be the MQTT client username)
-char* deviceSecret = "device_secret";         // * set your device secret (will be the MQTT client password)
-char* outTopic     = "devices/device_id/set"; // * MQTT channel where physical updates are published
-char* inTopic      = "devices/device_id/get"; // * MQTT channel where lelylan updates are received
-char* clientId     = "7dslk2dfksd";             // * set a random string (max 23 chars, will be the MQTT client id)
+String deviceId     = "device_id";             // * set your device id (will be the MQTT client username)
+String deviceSecret = "device_secret";         // * set your device secret (will be the MQTT client password)
+String clientId     = "7dslk2dfksd";             // * set a random string (max 23 chars, will be the MQTT client id)
 
 // WiFi name & password
 const char* ssid = "your_WiFi_name";
 const char* password = "your_WiFi_password"; 
 
-// MQTT server address
-byte server[] = { 178, 62, 108, 47 }; 
+// Topics
+String outTopic     = "devices/" + deviceId + "/set"; // * MQTT channel where physical updates are published
+String inTopic      = "devices/" + deviceId + "/get"; // * MQTT channel where lelylan updates are received
  
 // WiFi client
 WiFiClient wifiClient;
@@ -37,9 +36,12 @@ WiFiClient wifiClient;
 // Initialize DHT sensor
 DHT dht(DHTPIN, DHTTYPE, 15);
  
-// MQTT communication
-void callback(char* topic, byte* payload, unsigned int length); // subscription callback
-PubSubClient client(server, 1883, callback, wifiClient);         // mqtt client
+// MQTT server address
+IPAddress server(178, 62, 108, 47);
+ 
+// MQTT
+PubSubClient client(server);
+
  
 void setup() {
   Serial.begin(115200);
@@ -98,7 +100,8 @@ void lelylanConnection() {
   // add reconnection logics
   if (!client.connected()) {
     // connection to MQTT server
-    if (client.connect(clientId, deviceId, deviceSecret)) {
+    if (client.connect(MQTT::Connect(clientId)
+	             .set_auth(deviceId, deviceSecret))) {
       Serial.println("[PHYSICAL] Successfully connected with MQTT");
       lelylanSubscribe(); // topic subscription
     }
